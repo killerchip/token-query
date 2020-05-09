@@ -1,0 +1,5 @@
+node_modules
+build
+coverage
+src/serviceWorker.ts
+plopfile.js
