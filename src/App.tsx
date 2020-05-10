@@ -1,7 +1,7 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
-import { useLogin } from './token-query';
+import { useLogin, logout } from './token-query';
 import Clock from './Clock';
 
 const milisToTime = (milis: number) =>
@@ -26,13 +26,21 @@ function App() {
         />
         {!isLoggedIn ? (
           <div>
-            <button type="button" onClick={() => refetch()}>
+            <button type="button" onClick={() => refetch({ force: true })}>
               {isFetching ? '...' : 'Login'}
             </button>
           </div>
         ) : (
           <div>
-            <ul>{token && <li>token: {milisToTime(token?.token)}</li>}</ul>
+            <ul style={{ listStyle: 'none' }}>
+              {token && <li>token: {milisToTime(token?.token)}</li>}
+              {token && <li>refresh: {milisToTime(token?.refresh)}</li>}
+              {token && <li>{token?.holder}</li>}
+            </ul>
+
+            <button type="button" onClick={logout}>
+              Logout
+            </button>
           </div>
         )}
       </header>

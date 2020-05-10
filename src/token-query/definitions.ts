@@ -25,3 +25,5 @@ export const sendLogin: SendLoginFn = (_, data) =>
       resolve(generateToken(data.email));
     }, DELAY);
   });
+
+export const onLogout = async () => {};
