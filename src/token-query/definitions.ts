@@ -19,6 +19,10 @@ export type SendLoginFn = (
   data: LoginRequestData
 ) => Promise<Token>;
 
+export class ErrorType extends Error {}
+
+export type SendRefreshFn = (key: string, token: Token) => Promise<Token>;
+
 export const sendLogin: SendLoginFn = (_, data) =>
   new Promise((resolve) => {
     setTimeout(() => {
@@ -27,3 +31,24 @@ export const sendLogin: SendLoginFn = (_, data) =>
   });
 
 export const onLogout = async () => {};
+
+export const sendRefresh: SendRefreshFn = (_, token) =>
+  new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(generateToken(token.holder));
+    }, DELAY);
+  });
+
+export const isPermanentError = (error: ErrorType): boolean =>
+  error.message.includes('401-');
+
+export const shouldRetry = (failureCount: number, error: unknown): boolean => {
+  return failureCount < 3 && !isPermanentError(error as ErrorType);
+};
+
+export const onPermanentRefreshError = async (
+  _: ErrorType,
+  logout: () => void
+) => {
+  logout();
+};

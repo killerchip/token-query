@@ -1,10 +1,17 @@
-import { useQuery, queryCache } from 'react-query';
+import { useState, useEffect } from 'react';
+import { queryCache } from 'react-query';
+import isEqual from 'lodash/isEqual';
+
 import {
   LoginRequestData,
   QUERY_KEY,
   sendLogin,
   onLogout,
-  Token
+  Token,
+  sendRefresh,
+  shouldRetry as retry,
+  onPermanentRefreshError,
+  ErrorType
 } from './definitions';
 
 const saveTokenToLocalStorage = (token: Token) => {
@@ -30,20 +37,25 @@ const getTokenFromLocalStorage = () => {
   }
 };
 
-export const useLogin = (data: LoginRequestData) =>
-  useQuery({
-    queryKey: QUERY_KEY,
-    variables: [data],
-    queryFn: sendLogin,
-    config: {
-      manual: true,
-      staleTime: Infinity,
-      cacheTime: Infinity,
-      onSuccess: (token) => {
-        saveTokenToLocalStorage(token);
+export const useToken = () => {
+  const [token, setToken] = useState<Token>();
+
+  useEffect(() => {
+    const unsubscribe = queryCache.subscribe((newQueryCache) => {
+      const newToken = newQueryCache.getQueryData([QUERY_KEY]) as
+        | Token
+        | undefined;
+
+      if (!isEqual(token, newToken)) {
+        setToken(newToken);
       }
-    }
+    });
+
+    return () => unsubscribe();
   });
+
+  return token;
+};
 
 export const logout = async () => {
   try {
@@ -65,6 +77,82 @@ export const init = (initValue?: Token) => {
   }
 
   queryCache.setQueryData(QUERY_KEY, token);
+};
+
+export const login = async (data: LoginRequestData) => {
+  const newToken = await queryCache.prefetchQuery({
+    queryKey: [QUERY_KEY],
+    variables: [data],
+    queryFn: sendLogin,
+    config: {
+      staleTime: Infinity,
+      cacheTime: Infinity,
+      force: true,
+      retry,
+      throwOnError: true
+    }
+  });
+
+  saveTokenToLocalStorage(newToken);
+
+  return newToken;
+};
+
+export const refresh = async (throwError = false) => {
+  try {
+    const token = queryCache.getQueryData(QUERY_KEY) as Token;
+    const newToken = await queryCache.prefetchQuery({
+      queryKey: [QUERY_KEY],
+      variables: [token],
+      queryFn: sendRefresh,
+      config: {
+        staleTime: Infinity,
+        cacheTime: Infinity,
+        force: true,
+        retry,
+        throwOnError: true
+      }
+    });
+
+    saveTokenToLocalStorage(newToken);
+
+    return newToken;
+  } catch (error) {
+    await onPermanentRefreshError(error, logout);
+
+    if (throwError) {
+      throw error;
+    }
+
+    return undefined;
+  }
+};
+
+export const useLoginRequest = () => {
+  const [data, setData] = useState<Token | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState<ErrorType | null>(null);
+
+  const requestLogin = async (request: LoginRequestData) => {
+    setIsFetching(true);
+    setData(null);
+    setError(null);
+
+    let result;
+
+    try {
+      result = await login(request);
+      setData(result);
+    } catch (loginError) {
+      setError(loginError as ErrorType);
+    } finally {
+      setIsFetching(false);
+    }
+
+    return result;
+  };
+
+  return { data, isFetching, error, requestLogin };
 };
 
 init();

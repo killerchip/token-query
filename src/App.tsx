@@ -1,18 +1,18 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
-import { useLogin, logout } from './token-query';
+import { useToken, logout, refresh, useLoginRequest } from './token-query';
 import Clock from './Clock';
 
 const milisToTime = (milis: number) =>
   new Date(milis).toTimeString().split(' ')[0];
 
 function App() {
-  const { data: token, refetch, isFetching } = useLogin({
-    email: 'test@example.com'
-  });
+  const token = useToken();
 
   const isLoggedIn = token !== undefined;
+
+  const { isFetching, requestLogin } = useLoginRequest();
 
   return (
     <div className="App">
@@ -26,7 +26,10 @@ function App() {
         />
         {!isLoggedIn ? (
           <div>
-            <button type="button" onClick={() => refetch({ force: true })}>
+            <button
+              type="button"
+              onClick={() => requestLogin({ email: 'test@example.com' })}
+            >
               {isFetching ? '...' : 'Login'}
             </button>
           </div>
@@ -40,6 +43,9 @@ function App() {
 
             <button type="button" onClick={logout}>
               Logout
+            </button>
+            <button type="button" onClick={() => refresh()}>
+              Refresh Manually
             </button>
           </div>
         )}
