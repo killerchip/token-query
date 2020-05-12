@@ -10,8 +10,11 @@ import {
   Token,
   sendRefresh,
   shouldRetry as retry,
-  onPermanentRefreshError,
-  ErrorType
+  ErrorType,
+  tokenExpired,
+  shouldRefreshOnBackground,
+  refreshTokenExpired,
+  refreshExpiredError
 } from './definitions';
 
 const saveTokenToLocalStorage = (token: Token) => {
@@ -98,7 +101,7 @@ export const login = async (data: LoginRequestData) => {
   return newToken;
 };
 
-export const refresh = async (throwError = false) => {
+export const refresh = async (throwError = true) => {
   try {
     const token = queryCache.getQueryData(QUERY_KEY) as Token;
     const newToken = await queryCache.prefetchQuery({
@@ -118,14 +121,12 @@ export const refresh = async (throwError = false) => {
 
     return newToken;
   } catch (error) {
-    await onPermanentRefreshError(error, logout);
-
     if (throwError) {
       throw error;
     }
-
-    return undefined;
   }
+
+  return undefined;
 };
 
 export const useLoginRequest = () => {
@@ -153,6 +154,29 @@ export const useLoginRequest = () => {
   };
 
   return { data, isFetching, error, requestLogin };
+};
+
+export const getToken = async () => {
+  const currenToken = queryCache.getQueryData(QUERY_KEY) as Token | undefined;
+
+  if (!currenToken) {
+    return currenToken;
+  }
+
+  if (!tokenExpired(currenToken)) {
+    if (shouldRefreshOnBackground(currenToken)) {
+      refresh(false);
+    }
+
+    return currenToken;
+  }
+
+  if (refreshTokenExpired(currenToken)) {
+    throw refreshExpiredError();
+  }
+
+  const newToken = await refresh();
+  return newToken;
 };
 
 init();

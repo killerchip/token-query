@@ -1,6 +1,7 @@
 import { generateToken } from './helpers';
 
 export const DELAY = 1000 * 3;
+export const GRACE_PERIOD = 1000 * 60 * 1;
 
 export const QUERY_KEY = 'token';
 
@@ -20,6 +21,8 @@ export type SendLoginFn = (
 ) => Promise<Token>;
 
 export class ErrorType extends Error {}
+
+export const refreshExpiredError = () => new Error('401-Refresh expired');
 
 export type SendRefreshFn = (key: string, token: Token) => Promise<Token>;
 
@@ -46,9 +49,16 @@ export const shouldRetry = (failureCount: number, error: unknown): boolean => {
   return failureCount < 3 && !isPermanentError(error as ErrorType);
 };
 
-export const onPermanentRefreshError = async (
-  _: ErrorType,
-  logout: () => void
-) => {
-  logout();
+const isInPast = (timestamp: number) => {
+  const now = new Date().getTime();
+
+  return now > timestamp;
 };
+
+export const tokenExpired = (token: Token): boolean => isInPast(token.token);
+
+export const refreshTokenExpired = (token: Token): boolean =>
+  isInPast(token.refresh);
+
+export const shouldRefreshOnBackground = (token: Token) =>
+  isInPast(token.token - GRACE_PERIOD);
