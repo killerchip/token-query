@@ -41,7 +41,8 @@ const getTokenFromLocalStorage = () => {
 };
 
 export const useToken = () => {
-  const [token, setToken] = useState<Token>();
+  const existingToken = queryCache.getQueryData(QUERY_KEY) as Token;
+  const [token, setToken] = useState<Token | undefined>(existingToken);
 
   useEffect(() => {
     const unsubscribe = queryCache.subscribe((newQueryCache) => {
@@ -54,7 +55,9 @@ export const useToken = () => {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+    };
   });
 
   return token;
@@ -129,33 +132,6 @@ export const refresh = async (throwError = true) => {
   return undefined;
 };
 
-export const useLoginRequest = () => {
-  const [data, setData] = useState<Token | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState<ErrorType | null>(null);
-
-  const requestLogin = async (request: LoginRequestData) => {
-    setIsFetching(true);
-    setData(null);
-    setError(null);
-
-    let result;
-
-    try {
-      result = await login(request);
-      setData(result);
-    } catch (loginError) {
-      setError(loginError as ErrorType);
-    } finally {
-      setIsFetching(false);
-    }
-
-    return result;
-  };
-
-  return { data, isFetching, error, requestLogin };
-};
-
 export const getToken = async () => {
   const currenToken = queryCache.getQueryData(QUERY_KEY) as Token | undefined;
 
@@ -177,6 +153,35 @@ export const getToken = async () => {
 
   const newToken = await refresh();
   return newToken;
+};
+
+export const useLoginRequest = () => {
+  const [data, setData] = useState<Token | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState<ErrorType | null>(null);
+
+  const requestLogin = async (request: LoginRequestData) => {
+    setIsFetching(true);
+    setData(null);
+    setError(null);
+
+    let result;
+
+    try {
+      result = await sendLogin(QUERY_KEY, request);
+      setIsFetching(false);
+      setData(result);
+
+      saveTokenToLocalStorage(result);
+      queryCache.setQueryData(QUERY_KEY, result);
+    } catch (loginError) {
+      setIsFetching(false);
+      setError(loginError as ErrorType);
+    }
+    return result;
+  };
+
+  return { data, isFetching, error, requestLogin };
 };
 
 init();
