@@ -1,4 +1,6 @@
-import React, { FC, useState } from 'react';
+import React, { FC } from 'react';
+import { useQuery } from 'react-query';
+
 import { useToken, logout, refresh } from './token-query';
 import { milisToTime } from './helpers';
 import { GRACE_PERIOD } from './token-query/definitions';
@@ -6,18 +8,8 @@ import { fetchMe } from './api/api';
 
 const Private: FC = () => {
   const token = useToken();
-  console.log(token);
 
-  const [me, setMe] = useState('');
-  const onFetchMe = async () => {
-    setMe('...');
-    try {
-      const data = await fetchMe();
-      setMe(data);
-    } catch (error) {
-      setMe(error.message);
-    }
-  };
+  const { data, isFetching, refetch } = useQuery('ME', fetchMe);
 
   return (
     <div>
@@ -27,7 +19,9 @@ const Private: FC = () => {
         {token && <li>refresh: {milisToTime(token?.refresh)}</li>}
         {token && <li>{token?.holder}</li>}
       </ul>
-      <p>me: {me}</p>
+      <p>
+        me: {isFetching && '...'} {data}
+      </p>
 
       <button type="button" onClick={logout}>
         Logout
@@ -37,7 +31,7 @@ const Private: FC = () => {
         Refresh Manually
       </button>
 
-      <button type="button" onClick={onFetchMe}>
+      <button type="button" onClick={() => refetch({ force: true })}>
         Fetch me
       </button>
     </div>
