@@ -75,40 +75,6 @@ export const logout = async () => {
   }
 };
 
-export const init = (initValue?: Token) => {
-  const token = initValue || getTokenFromLocalStorage();
-
-  if (initValue && token) {
-    saveTokenToLocalStorage(token);
-  }
-
-  if (token && refreshTokenExpired(token)) {
-    logout();
-    return;
-  }
-
-  queryCache.setQueryData(QUERY_KEY, token);
-};
-
-export const login = async (data: LoginRequestData) => {
-  const newToken = await queryCache.prefetchQuery({
-    queryKey: [QUERY_KEY],
-    variables: [data],
-    queryFn: sendLogin,
-    config: {
-      staleTime: Infinity,
-      cacheTime: Infinity,
-      force: true,
-      retry,
-      throwOnError: true
-    }
-  });
-
-  saveTokenToLocalStorage(newToken);
-
-  return newToken;
-};
-
 export const refresh = async (throwError = true) => {
   try {
     const token = queryCache.getQueryData(QUERY_KEY) as Token;
@@ -135,6 +101,44 @@ export const refresh = async (throwError = true) => {
   }
 
   return undefined;
+};
+
+export const init = (initValue?: Token) => {
+  const token = initValue || getTokenFromLocalStorage();
+
+  if (initValue && token) {
+    saveTokenToLocalStorage(token);
+  }
+
+  if (token && refreshTokenExpired(token)) {
+    logout();
+    return;
+  }
+
+  if (token && tokenExpired(token)) {
+    refresh();
+  }
+
+  queryCache.setQueryData(QUERY_KEY, token);
+};
+
+export const login = async (data: LoginRequestData) => {
+  const newToken = await queryCache.prefetchQuery({
+    queryKey: [QUERY_KEY],
+    variables: [data],
+    queryFn: sendLogin,
+    config: {
+      staleTime: Infinity,
+      cacheTime: Infinity,
+      force: true,
+      retry,
+      throwOnError: true
+    }
+  });
+
+  saveTokenToLocalStorage(newToken);
+
+  return newToken;
 };
 
 export const getToken = async () => {
