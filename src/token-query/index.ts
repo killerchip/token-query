@@ -82,6 +82,11 @@ export const init = (initValue?: Token) => {
     saveTokenToLocalStorage(token);
   }
 
+  if (token && refreshTokenExpired(token)) {
+    logout();
+    return;
+  }
+
   queryCache.setQueryData(QUERY_KEY, token);
 };
 
