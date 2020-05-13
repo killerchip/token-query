@@ -1,16 +1,10 @@
 import React, { FC } from 'react';
-import { useLoginRequest } from './token-query';
 
 const Login: FC = () => {
-  const { isFetching, requestLogin } = useLoginRequest();
-
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => requestLogin({ email: 'test@example.com' })}
-      >
-        {isFetching ? '...' : 'Login'}
+      <button type="button" onClick={() => {}}>
+        Login
       </button>
     </div>
   );
