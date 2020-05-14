@@ -1,6 +1,6 @@
 import createTokenQuery from '../token-query/tokenQuery';
 
-interface Token {
+export interface Token {
   token: number;
   refresh: number;
   holder: string;
@@ -63,7 +63,14 @@ const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   refreshExpired,
   sendLogin,
   sendRefresh,
-  retry
+  retry,
+  tokenExpiredError: new Error('401-Refresh token expired'),
+  shouldTriggerFetch: (token) => {
+    const REFRESH_TIME_BEFORE_EXPIRE = 1000 * 60 * 1;
+
+    const now = new Date().getTime();
+    return now > token.token - REFRESH_TIME_BEFORE_EXPIRE;
+  }
 });
 
 mockTokenQuery.init();
@@ -73,5 +80,6 @@ export const useToken = mockTokenQuery.useToken;
 export const useLogin = mockTokenQuery.useLogin;
 export const logout = mockTokenQuery.logout;
 export const refresh = mockTokenQuery.refresh;
+export const getToken = mockTokenQuery.getToken;
 
 export default mockTokenQuery;

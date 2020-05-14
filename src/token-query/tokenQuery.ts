@@ -8,7 +8,9 @@ export interface Config<Token, LoginParams> {
   sendLogin: (loginParams: LoginParams) => Promise<Token>;
   sendRefresh: (token: Token) => Promise<Token>;
   retry: (failCount: number, error: any) => boolean;
+  tokenExpiredError: any;
   queryKey?: string;
+  shouldTriggerFetch?: (token: Token) => boolean;
 }
 
 function createTokenQuery<Token, LoginParams>({
@@ -17,7 +19,9 @@ function createTokenQuery<Token, LoginParams>({
   refreshExpired,
   sendLogin,
   sendRefresh,
-  retry
+  retry,
+  tokenExpiredError,
+  shouldTriggerFetch
 }: Config<Token, LoginParams>) {
   const getTokenFromStorate = () => {
     const storedToken = localStorage.getItem(queryKey);
@@ -136,6 +140,30 @@ function createTokenQuery<Token, LoginParams>({
 
     setTokenValue(newToken);
     queryCache.removeQueries(`temp-refresh-${queryKey}`);
+
+    return newToken;
+  };
+
+  const getToken = async (force = false) => {
+    const token = queryCache.getQueryData(queryKey) as Token | undefined;
+
+    if (token === undefined) return undefined;
+
+    if (refreshExpired(token)) {
+      throw tokenExpiredError;
+    }
+
+    if (tokenExpired(token) || force) {
+      const newToken = await refresh(true);
+
+      return newToken;
+    }
+
+    if (shouldTriggerFetch && shouldTriggerFetch(token)) {
+      refresh();
+    }
+
+    return token;
   };
 
   const init = () => {
@@ -152,7 +180,7 @@ function createTokenQuery<Token, LoginParams>({
     setTokenValue(token);
   };
 
-  return { init, useLogin, useToken, logout, refresh };
+  return { init, useLogin, useToken, logout, refresh, getToken };
 }
 
 export default createTokenQuery;
