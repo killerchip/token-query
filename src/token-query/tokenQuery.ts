@@ -109,6 +109,8 @@ function createTokenQuery<TToken, LoginParams>({
   const logout = async () => {
     setTokenValue(undefined);
     stopBackgroundRefreshing();
+
+    queryCache.clear();
   };
 
   const useLogin = () => {
