@@ -1,13 +1,14 @@
 import { queryCache } from 'react-query';
 import { useState, useEffect } from 'react';
 import isEqual from 'lodash/isEqual';
+import { sendRefresh } from '../old/token-query/definitions';
 
 export interface Config<Token, LoginParams> {
   queryKey: string;
   tokenExpired: (token: Token) => boolean;
   refreshExpired: (token: Token) => boolean;
   sendLogin: (loginParams: LoginParams) => Promise<Token>;
-  onPermanentRefreshFailure?: (logout: () => void) => Promise<void>;
+  sendRefresh: (token: Token) => Promise<Token>;
 }
 
 function createTokenQuery<Token, LoginParams, ErrorType>({
@@ -15,7 +16,7 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
   tokenExpired,
   refreshExpired,
   sendLogin,
-  onPermanentRefreshFailure
+  sendRefresh
 }: Config<Token, LoginParams>) {
   const getTokenFromStorate = () => {
     const storedToken = localStorage.getItem(queryKey);
@@ -108,6 +109,19 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
     return token;
   };
 
+  const refresh = async (throwOnError = false) => {
+    const token = queryCache.getQueryData(queryKey) as Token;
+
+    try {
+      const newToken = await sendRefresh(token);
+      setTokenValue(newToken);
+    } catch (error) {
+      if (throwOnError) {
+        throw error;
+      }
+    }
+  };
+
   const init = () => {
     const token = getTokenFromStorate();
 
@@ -122,7 +136,7 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
     setTokenValue(token);
   };
 
-  return { init, login, useLogin, useToken, logout };
+  return { init, login, useLogin, useToken, logout, refresh };
 }
 
 export default createTokenQuery;

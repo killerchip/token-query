@@ -38,11 +38,28 @@ const sendLogin = async (data: LoginParams) => {
   );
 };
 
+const sendRefresh = async (data: Token) => {
+  const TOKEN_LIFE = 1000 * 60 * 2;
+  const REFRESH_LIFE = 1000 * 60 * 3;
+  const now = new Date().getTime();
+
+  return new Promise<Token>((resolve) =>
+    setTimeout(() => {
+      resolve({
+        token: now + TOKEN_LIFE,
+        refresh: now + REFRESH_LIFE,
+        holder: data.holder
+      });
+    }, 2000)
+  );
+};
+
 const mockTokenQuery = createTokenQuery<Token, LoginParams, Error>({
   queryKey: 'token',
   tokenExpired,
   refreshExpired,
-  sendLogin
+  sendLogin,
+  sendRefresh
 });
 
 mockTokenQuery.init();
@@ -52,5 +69,6 @@ export const useToken = mockTokenQuery.useToken;
 export const login = mockTokenQuery.login;
 export const useLogin = mockTokenQuery.useLogin;
 export const logout = mockTokenQuery.logout;
+export const refresh = mockTokenQuery.refresh;
 
 export default mockTokenQuery;

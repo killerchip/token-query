@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import { milisToTime } from './helpers';
-import { useToken, logout } from './example/example';
+import { useToken, logout, refresh } from './example/example';
 
 const Private: FC = () => {
   const token = useToken();
@@ -23,7 +23,7 @@ const Private: FC = () => {
         Logout
       </button>
 
-      <button type="button" onClick={() => {}}>
+      <button type="button" onClick={() => refresh()}>
         Refresh Manually
       </button>
 
