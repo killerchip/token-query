@@ -1,14 +1,25 @@
 import React, { FC } from 'react';
+import { milisToTime } from './helpers';
+import { useToken, logout } from './example/example';
 
 const Private: FC = () => {
+  const token = useToken();
+
   return (
     <div>
       <ul style={{ listStyle: 'none' }}>
-        <li>token info here</li>
+        {token && <li>token expires: {milisToTime(token.token)}</li>}
+        {token && <li>refresh expires: {milisToTime(token.refresh)}</li>}
+        {token && <li>holder: {token.holder}</li>}
       </ul>
       <p>me:</p>
 
-      <button type="button" onClick={() => {}}>
+      <button
+        type="button"
+        onClick={() => {
+          logout();
+        }}
+      >
         Logout
       </button>
 
