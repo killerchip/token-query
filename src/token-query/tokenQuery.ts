@@ -3,16 +3,16 @@ import { useState, useEffect } from 'react';
 import isEqual from 'lodash/isEqual';
 
 export interface Config<Token, LoginParams> {
-  queryKey: string;
   tokenExpired: (token: Token) => boolean;
   refreshExpired: (token: Token) => boolean;
   sendLogin: (loginParams: LoginParams) => Promise<Token>;
   sendRefresh: (token: Token) => Promise<Token>;
   retry: (failCount: number, error: any) => boolean;
+  queryKey?: string;
 }
 
 function createTokenQuery<Token, LoginParams>({
-  queryKey,
+  queryKey = 'token',
   tokenExpired,
   refreshExpired,
   sendLogin,
@@ -48,7 +48,7 @@ function createTokenQuery<Token, LoginParams>({
 
   const login = async (loginParams: LoginParams, updateQuery = true) => {
     const token = await queryCache.prefetchQuery({
-      queryKey: [`Temp${queryKey}`],
+      queryKey: [`temp-login-${queryKey}`],
       variables: [loginParams],
       queryFn: (key: string, params: LoginParams) => sendLogin(params),
       config: {
@@ -61,7 +61,7 @@ function createTokenQuery<Token, LoginParams>({
       setTokenValue(token);
     }
 
-    queryCache.removeQueries(`Temp${queryKey}`);
+    queryCache.removeQueries(`temp-login-${queryKey}`);
 
     return token;
   };
@@ -135,6 +135,7 @@ function createTokenQuery<Token, LoginParams>({
     });
 
     setTokenValue(newToken);
+    queryCache.removeQueries(`temp-refresh-${queryKey}`);
   };
 
   const init = () => {
