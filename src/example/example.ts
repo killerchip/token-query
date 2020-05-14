@@ -54,19 +54,22 @@ const sendRefresh = async (data: Token) => {
   );
 };
 
-const mockTokenQuery = createTokenQuery<Token, LoginParams, Error>({
+const retry = (count: number, error: Error) =>
+  count < 3 && !error.message.includes('401-');
+
+const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   queryKey: 'token',
   tokenExpired,
   refreshExpired,
   sendLogin,
-  sendRefresh
+  sendRefresh,
+  retry
 });
 
 mockTokenQuery.init();
 
 /* eslint-disable prefer-destructuring */
 export const useToken = mockTokenQuery.useToken;
-export const login = mockTokenQuery.login;
 export const useLogin = mockTokenQuery.useLogin;
 export const logout = mockTokenQuery.logout;
 export const refresh = mockTokenQuery.refresh;

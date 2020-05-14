@@ -1,7 +1,6 @@
 import { queryCache } from 'react-query';
 import { useState, useEffect } from 'react';
 import isEqual from 'lodash/isEqual';
-import { sendRefresh } from '../old/token-query/definitions';
 
 export interface Config<Token, LoginParams> {
   queryKey: string;
@@ -9,14 +8,16 @@ export interface Config<Token, LoginParams> {
   refreshExpired: (token: Token) => boolean;
   sendLogin: (loginParams: LoginParams) => Promise<Token>;
   sendRefresh: (token: Token) => Promise<Token>;
+  retry: (failCount: number, error: any) => boolean;
 }
 
-function createTokenQuery<Token, LoginParams, ErrorType>({
+function createTokenQuery<Token, LoginParams>({
   queryKey,
   tokenExpired,
   refreshExpired,
   sendLogin,
-  sendRefresh
+  sendRefresh,
+  retry
 }: Config<Token, LoginParams>) {
   const getTokenFromStorate = () => {
     const storedToken = localStorage.getItem(queryKey);
@@ -45,10 +46,22 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
     queryCache.setQueryData(queryKey, token);
   };
 
-  const login = async (loginParams: LoginParams) => {
-    const token = await sendLogin(loginParams);
+  const login = async (loginParams: LoginParams, updateQuery = true) => {
+    const token = await queryCache.prefetchQuery({
+      queryKey: [`Temp${queryKey}`],
+      variables: [loginParams],
+      queryFn: (key: string, params: LoginParams) => sendLogin(params),
+      config: {
+        retry,
+        throwOnError: true
+      }
+    });
 
-    setTokenValue(token);
+    if (updateQuery) {
+      setTokenValue(token);
+    }
+
+    queryCache.removeQueries(`Temp${queryKey}`);
 
     return token;
   };
@@ -60,7 +73,7 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
   const useLogin = () => {
     const [data, setData] = useState<Token | null>(null);
     const [isFetching, setIsFetching] = useState(false);
-    const [error, setError] = useState<ErrorType | null>(null);
+    const [error, setError] = useState<any | null>(null);
 
     const requestLogin = async (loginParams: LoginParams) => {
       setIsFetching(true);
@@ -68,7 +81,7 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
       setError(null);
 
       try {
-        const token = await sendLogin(loginParams);
+        const token = await login(loginParams, false);
 
         setIsFetching(false);
         setData(token);
@@ -77,7 +90,7 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
         return token;
       } catch (loginError) {
         setIsFetching(false);
-        setError(loginError as ErrorType);
+        setError(loginError);
       }
 
       return undefined;
@@ -111,15 +124,17 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
 
   const refresh = async (throwOnError = false) => {
     const token = queryCache.getQueryData(queryKey) as Token;
-
-    try {
-      const newToken = await sendRefresh(token);
-      setTokenValue(newToken);
-    } catch (error) {
-      if (throwOnError) {
-        throw error;
+    const newToken = await queryCache.prefetchQuery({
+      queryKey: [`temp-refresh-${queryKey}`],
+      variables: [token],
+      queryFn: (key: string, data: Token) => sendRefresh(data),
+      config: {
+        retry,
+        throwOnError
       }
-    }
+    });
+
+    setTokenValue(newToken);
   };
 
   const init = () => {
@@ -136,7 +151,7 @@ function createTokenQuery<Token, LoginParams, ErrorType>({
     setTokenValue(token);
   };
 
-  return { init, login, useLogin, useToken, logout, refresh };
+  return { init, useLogin, useToken, logout, refresh };
 }
 
 export default createTokenQuery;
