@@ -23,6 +23,9 @@ function createTokenQuery<TToken, LoginParams>({
   tokenExpiredError,
   shouldTriggerFetch
 }: Config<TToken, LoginParams>) {
+  let tokenRefreshIntervalHandler: any;
+  let tokenRefreshInterval: number;
+
   const getTokenFromStorate = () => {
     const storedToken = localStorage.getItem(queryKey);
 
@@ -50,6 +53,35 @@ function createTokenQuery<TToken, LoginParams>({
     queryCache.setQueryData(queryKey, token);
   };
 
+  const refresh = async (throwOnError = false) => {
+    const token = queryCache.getQueryData(queryKey) as TToken;
+    const newToken = await queryCache.prefetchQuery({
+      queryKey: [`temp-refresh-${queryKey}`],
+      variables: [token],
+      queryFn: (key: string, data: TToken) => sendRefresh(data),
+      config: {
+        retry,
+        throwOnError
+      }
+    });
+
+    setTokenValue(newToken);
+    queryCache.removeQueries(`temp-refresh-${queryKey}`);
+
+    return newToken;
+  };
+
+  const startBackgroundRefreshing = () => {
+    clearInterval(tokenRefreshIntervalHandler);
+    tokenRefreshIntervalHandler = setInterval(() => {
+      refresh();
+    }, tokenRefreshInterval);
+  };
+
+  const stopBackgroundRefreshing = () => {
+    clearInterval(tokenRefreshIntervalHandler);
+  };
+
   const login = async (loginParams: LoginParams, updateQuery = true) => {
     const token = await queryCache.prefetchQuery({
       queryKey: [`temp-login-${queryKey}`],
@@ -65,6 +97,10 @@ function createTokenQuery<TToken, LoginParams>({
       setTokenValue(token);
     }
 
+    if (tokenRefreshInterval) {
+      startBackgroundRefreshing();
+    }
+
     queryCache.removeQueries(`temp-login-${queryKey}`);
 
     return token;
@@ -72,6 +108,7 @@ function createTokenQuery<TToken, LoginParams>({
 
   const logout = async () => {
     setTokenValue(undefined);
+    stopBackgroundRefreshing();
   };
 
   const useLogin = () => {
@@ -126,24 +163,6 @@ function createTokenQuery<TToken, LoginParams>({
     return token;
   };
 
-  const refresh = async (throwOnError = false) => {
-    const token = queryCache.getQueryData(queryKey) as TToken;
-    const newToken = await queryCache.prefetchQuery({
-      queryKey: [`temp-refresh-${queryKey}`],
-      variables: [token],
-      queryFn: (key: string, data: TToken) => sendRefresh(data),
-      config: {
-        retry,
-        throwOnError
-      }
-    });
-
-    setTokenValue(newToken);
-    queryCache.removeQueries(`temp-refresh-${queryKey}`);
-
-    return newToken;
-  };
-
   const getToken = async (force = false) => {
     const token = queryCache.getQueryData(queryKey) as TToken | undefined;
 
@@ -178,7 +197,8 @@ function createTokenQuery<TToken, LoginParams>({
     setTokenValue(token);
 
     if (refreshInterval) {
-      // START refresh interval
+      tokenRefreshInterval = refreshInterval;
+      startBackgroundRefreshing();
     }
   };
 

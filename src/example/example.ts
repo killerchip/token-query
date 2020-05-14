@@ -73,7 +73,7 @@ const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   }
 });
 
-mockTokenQuery.init();
+mockTokenQuery.init(1000 * 30);
 
 /* eslint-disable prefer-destructuring */
 export const useToken = mockTokenQuery.useToken;
