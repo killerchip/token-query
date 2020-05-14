@@ -2,18 +2,18 @@ import { queryCache } from 'react-query';
 import { useState, useEffect } from 'react';
 import isEqual from 'lodash/isEqual';
 
-export interface Config<Token, LoginParams> {
-  tokenExpired: (token: Token) => boolean;
-  refreshExpired: (token: Token) => boolean;
-  sendLogin: (loginParams: LoginParams) => Promise<Token>;
-  sendRefresh: (token: Token) => Promise<Token>;
+export interface Config<TToken, LoginParams> {
+  tokenExpired: (token: TToken) => boolean;
+  refreshExpired: (token: TToken) => boolean;
+  sendLogin: (loginParams: LoginParams) => Promise<TToken>;
+  sendRefresh: (token: TToken) => Promise<TToken>;
   retry: (failCount: number, error: any) => boolean;
   tokenExpiredError: any;
   queryKey?: string;
-  shouldTriggerFetch?: (token: Token) => boolean;
+  shouldTriggerFetch?: (token: TToken) => boolean;
 }
 
-function createTokenQuery<Token, LoginParams>({
+function createTokenQuery<TToken, LoginParams>({
   queryKey = 'token',
   tokenExpired,
   refreshExpired,
@@ -22,7 +22,7 @@ function createTokenQuery<Token, LoginParams>({
   retry,
   tokenExpiredError,
   shouldTriggerFetch
-}: Config<Token, LoginParams>) {
+}: Config<TToken, LoginParams>) {
   const getTokenFromStorate = () => {
     const storedToken = localStorage.getItem(queryKey);
 
@@ -30,7 +30,7 @@ function createTokenQuery<Token, LoginParams>({
       return undefined;
     }
 
-    let token: Token | undefined;
+    let token: TToken | undefined;
 
     try {
       token = JSON.parse(storedToken);
@@ -40,7 +40,7 @@ function createTokenQuery<Token, LoginParams>({
     return token;
   };
 
-  const setTokenValue = (token: Token | undefined) => {
+  const setTokenValue = (token: TToken | undefined) => {
     if (token === undefined) {
       localStorage.removeItem(queryKey);
     } else {
@@ -75,7 +75,7 @@ function createTokenQuery<Token, LoginParams>({
   };
 
   const useLogin = () => {
-    const [data, setData] = useState<Token | null>(null);
+    const [data, setData] = useState<TToken | null>(null);
     const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<any | null>(null);
 
@@ -104,13 +104,13 @@ function createTokenQuery<Token, LoginParams>({
   };
 
   const useToken = () => {
-    const existingToken = queryCache.getQueryData(queryKey) as Token;
-    const [token, setToken] = useState<Token | undefined>(existingToken);
+    const existingToken = queryCache.getQueryData(queryKey) as TToken;
+    const [token, setToken] = useState<TToken | undefined>(existingToken);
 
     useEffect(() => {
       const unsubscribe = queryCache.subscribe((newQueryCache) => {
         const newToken = newQueryCache.getQueryData([queryKey]) as
-          | Token
+          | TToken
           | undefined;
 
         if (!isEqual(token, newToken)) {
@@ -127,11 +127,11 @@ function createTokenQuery<Token, LoginParams>({
   };
 
   const refresh = async (throwOnError = false) => {
-    const token = queryCache.getQueryData(queryKey) as Token;
+    const token = queryCache.getQueryData(queryKey) as TToken;
     const newToken = await queryCache.prefetchQuery({
       queryKey: [`temp-refresh-${queryKey}`],
       variables: [token],
-      queryFn: (key: string, data: Token) => sendRefresh(data),
+      queryFn: (key: string, data: TToken) => sendRefresh(data),
       config: {
         retry,
         throwOnError
@@ -145,7 +145,7 @@ function createTokenQuery<Token, LoginParams>({
   };
 
   const getToken = async (force = false) => {
-    const token = queryCache.getQueryData(queryKey) as Token | undefined;
+    const token = queryCache.getQueryData(queryKey) as TToken | undefined;
 
     if (token === undefined) return undefined;
 
@@ -166,18 +166,20 @@ function createTokenQuery<Token, LoginParams>({
     return token;
   };
 
-  const init = () => {
+  const init = async (refreshInterval?: number) => {
     const token = getTokenFromStorate();
 
     if (!token || refreshExpired(token)) {
       setTokenValue(undefined);
+
+      return;
     }
 
-    // TODO refresh token if expired
-
-    // TODO start background refreshing
-
     setTokenValue(token);
+
+    if (refreshInterval) {
+      // START refresh interval
+    }
   };
 
   return { init, useLogin, useToken, logout, refresh, getToken };
