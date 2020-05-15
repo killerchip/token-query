@@ -1,4 +1,5 @@
 import createTokenQuery from '../token-query/tokenQuery';
+import { responses } from './errorSimulator';
 
 export interface Token {
   token: number;
@@ -29,8 +30,18 @@ const sendLogin = async (data: LoginParams) => {
   const REFRESH_LIFE = 1000 * 60 * 3;
   const now = new Date().getTime();
 
-  return new Promise<Token>((resolve) =>
+  return new Promise<Token>((resolve, reject) =>
     setTimeout(() => {
+      if (responses.loginResponse === 'permanent') {
+        reject(new Error('401-Unauthorized'));
+        return;
+      }
+
+      if (responses.loginResponse === 'temporary') {
+        reject(new Error('Network error'));
+        return;
+      }
+
       resolve({
         token: now + TOKEN_LIFE,
         refresh: now + REFRESH_LIFE,
@@ -47,8 +58,18 @@ const sendRefresh = async (data: Token) => {
   const REFRESH_LIFE = 1000 * 60 * 3;
   const now = new Date().getTime();
 
-  return new Promise<Token>((resolve) =>
+  return new Promise<Token>((resolve, reject) =>
     setTimeout(() => {
+      if (responses.refreshResponse === 'permanent') {
+        reject(new Error('401-Unauthorized'));
+        return;
+      }
+
+      if (responses.refreshResponse === 'temporary') {
+        reject(new Error('Network error'));
+        return;
+      }
+
       resolve({
         token: now + TOKEN_LIFE,
         refresh: now + REFRESH_LIFE,

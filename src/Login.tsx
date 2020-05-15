@@ -1,8 +1,15 @@
-import React, { FC } from 'react';
+/* eslint-disable no-alert */
+import React, { FC, useEffect } from 'react';
 import { useLogin } from './example/auth';
 
 const Login: FC = () => {
-  const { isFetching, requestLogin } = useLogin();
+  const { isFetching, requestLogin, error } = useLogin();
+
+  useEffect(() => {
+    if (error) {
+      alert((error as Error).message);
+    }
+  }, [error]);
 
   return (
     <div>

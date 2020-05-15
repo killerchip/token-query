@@ -66,7 +66,10 @@ function createTokenQuery<TToken, LoginParams>({
       }
     });
 
-    setTokenValue(newToken);
+    if (newToken !== undefined) {
+      setTokenValue(newToken);
+    }
+
     queryCache.removeQueries(`temp-refresh-${queryKey}`);
 
     return newToken;
@@ -88,7 +91,7 @@ function createTokenQuery<TToken, LoginParams>({
     const token = await queryCache.prefetchQuery({
       queryKey: [`temp-login-${queryKey}`],
       variables: [loginParams],
-      queryFn: (key: string, params: LoginParams) => sendLogin(params),
+      queryFn: (_: string, params: LoginParams) => sendLogin(params),
       config: {
         retry,
         throwOnError: true
