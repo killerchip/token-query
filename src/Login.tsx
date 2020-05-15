@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { useLogin } from './example/example';
+import { useLogin } from './example/auth';
 
 const Login: FC = () => {
   const { isFetching, requestLogin } = useLogin();

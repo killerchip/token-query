@@ -15,7 +15,7 @@
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "react-query": "1.3.4",
-    "react-query-devtools": "^1.1.5",
+    "react-query-devtools": "1.1.5",
     "react-scripts": "3.4.1",
     "typescript": "3.7.2"
   },

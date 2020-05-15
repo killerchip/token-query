@@ -1,20 +1,22 @@
 /* eslint-disable no-alert */
-/* eslint-disable no-console */
-import { getToken, logout, Token } from './example';
+import { getToken, logout, Token } from './auth';
 import { milisToTime } from '../helpers';
 
 export async function privateRequest<TResult>(
-  caller: (token: Token) => Promise<any>
+  asyncFunc: (token: Token) => Promise<any>
 ) {
   try {
     const token = (await getToken()) as Token;
-    const result = (await caller(token)) as TResult;
+
+    // simulate that use of token in asyncFun
+    // typically the token will be injected in the headers
+    // that async func calls
+    const result = (await asyncFunc(token)) as TResult;
 
     return result;
   } catch (error) {
     if ((error as Error).message.includes('401-')) {
-      console.log('is Permannent', error);
-      alert('Permanent Error');
+      alert('Permanent Error. You will have to re-login');
 
       logout();
     }
@@ -22,6 +24,8 @@ export async function privateRequest<TResult>(
   }
 }
 
+// simulating fetching user's profile which is based
+// on authentication token
 export const fetchMe = () =>
   privateRequest(
     (token) =>

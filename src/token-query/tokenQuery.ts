@@ -10,7 +10,7 @@ export interface Config<TToken, LoginParams> {
   retry: (failCount: number, error: any) => boolean;
   tokenExpiredError: any;
   queryKey?: string;
-  shouldTriggerFetch?: (token: TToken) => boolean;
+  shouldRefreshOnBackground?: (token: TToken) => boolean;
 }
 
 function createTokenQuery<TToken, LoginParams>({
@@ -21,22 +21,22 @@ function createTokenQuery<TToken, LoginParams>({
   sendRefresh,
   retry,
   tokenExpiredError,
-  shouldTriggerFetch
+  shouldRefreshOnBackground
 }: Config<TToken, LoginParams>) {
   let tokenRefreshIntervalHandler: any;
   let tokenRefreshInterval: number;
 
-  const getTokenFromStorate = () => {
-    const storedToken = localStorage.getItem(queryKey);
+  const getTokenFromStorage = () => {
+    const storedValue = localStorage.getItem(queryKey);
 
-    if (!storedToken) {
+    if (!storedValue) {
       return undefined;
     }
 
     let token: TToken | undefined;
 
     try {
-      token = JSON.parse(storedToken);
+      token = JSON.parse(storedValue);
       // eslint-disable-next-line no-empty
     } catch {}
 
@@ -55,10 +55,11 @@ function createTokenQuery<TToken, LoginParams>({
 
   const refresh = async (throwOnError = false) => {
     const token = queryCache.getQueryData(queryKey) as TToken;
+
     const newToken = await queryCache.prefetchQuery({
       queryKey: [`temp-refresh-${queryKey}`],
       variables: [token],
-      queryFn: (key: string, data: TToken) => sendRefresh(data),
+      queryFn: (_: string, data: TToken) => sendRefresh(data),
       config: {
         retry,
         throwOnError
@@ -73,6 +74,7 @@ function createTokenQuery<TToken, LoginParams>({
 
   const startBackgroundRefreshing = () => {
     clearInterval(tokenRefreshIntervalHandler);
+
     tokenRefreshIntervalHandler = setInterval(() => {
       refresh();
     }, tokenRefreshInterval);
@@ -82,7 +84,7 @@ function createTokenQuery<TToken, LoginParams>({
     clearInterval(tokenRefreshIntervalHandler);
   };
 
-  const login = async (loginParams: LoginParams, updateQuery = true) => {
+  const login = async (loginParams: LoginParams) => {
     const token = await queryCache.prefetchQuery({
       queryKey: [`temp-login-${queryKey}`],
       variables: [loginParams],
@@ -92,10 +94,6 @@ function createTokenQuery<TToken, LoginParams>({
         throwOnError: true
       }
     });
-
-    if (updateQuery) {
-      setTokenValue(token);
-    }
 
     if (tokenRefreshInterval) {
       startBackgroundRefreshing();
@@ -109,8 +107,6 @@ function createTokenQuery<TToken, LoginParams>({
   const logout = async () => {
     setTokenValue(undefined);
     stopBackgroundRefreshing();
-
-    queryCache.clear();
   };
 
   const useLogin = () => {
@@ -124,7 +120,7 @@ function createTokenQuery<TToken, LoginParams>({
       setError(null);
 
       try {
-        const token = await login(loginParams, false);
+        const token = await login(loginParams);
 
         setIsFetching(false);
         setData(token);
@@ -180,7 +176,7 @@ function createTokenQuery<TToken, LoginParams>({
       return newToken;
     }
 
-    if (shouldTriggerFetch && shouldTriggerFetch(token)) {
+    if (shouldRefreshOnBackground && shouldRefreshOnBackground(token)) {
       refresh();
     }
 
@@ -188,7 +184,11 @@ function createTokenQuery<TToken, LoginParams>({
   };
 
   const init = async (refreshInterval?: number) => {
-    const token = getTokenFromStorate();
+    if (refreshInterval) {
+      tokenRefreshInterval = refreshInterval;
+    }
+
+    const token = getTokenFromStorage();
 
     if (!token || refreshExpired(token)) {
       setTokenValue(undefined);
@@ -199,7 +199,6 @@ function createTokenQuery<TToken, LoginParams>({
     setTokenValue(token);
 
     if (refreshInterval) {
-      tokenRefreshInterval = refreshInterval;
       startBackgroundRefreshing();
     }
   };

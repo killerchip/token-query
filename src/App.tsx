@@ -6,7 +6,7 @@ import './App.css';
 import Clock from './Clock';
 import Login from './Login';
 import Private from './Private';
-import { useToken } from './example/example';
+import { useToken } from './example/auth';
 
 function App() {
   const token = useToken();

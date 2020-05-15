@@ -22,6 +22,8 @@ const refreshExpired = (token: Token) => {
   return token.refresh < now;
 };
 
+// simulating sending a login request
+// and the response
 const sendLogin = async (data: LoginParams) => {
   const TOKEN_LIFE = 1000 * 60 * 2;
   const REFRESH_LIFE = 1000 * 60 * 3;
@@ -38,6 +40,8 @@ const sendLogin = async (data: LoginParams) => {
   );
 };
 
+// simulating sending a refresh-token request
+// and the response with the new token
 const sendRefresh = async (data: Token) => {
   const TOKEN_LIFE = 1000 * 60 * 2;
   const REFRESH_LIFE = 1000 * 60 * 3;
@@ -65,7 +69,7 @@ const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   sendRefresh,
   retry,
   tokenExpiredError: new Error('401-Refresh token expired'),
-  shouldTriggerFetch: (token) => {
+  shouldRefreshOnBackground: (token) => {
     const REFRESH_TIME_BEFORE_EXPIRE = 1000 * 60 * 1;
 
     const now = new Date().getTime();
@@ -73,7 +77,7 @@ const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   }
 });
 
-mockTokenQuery.init(1000 * 30);
+mockTokenQuery.init(1000 * 60);
 
 /* eslint-disable prefer-destructuring */
 export const useToken = mockTokenQuery.useToken;
@@ -81,5 +85,6 @@ export const useLogin = mockTokenQuery.useLogin;
 export const logout = mockTokenQuery.logout;
 export const refresh = mockTokenQuery.refresh;
 export const getToken = mockTokenQuery.getToken;
+/* eslint-enable prefer-destructuring */
 
 export default mockTokenQuery;

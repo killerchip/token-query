@@ -2,7 +2,7 @@ import React, { FC } from 'react';
 import { useQuery } from 'react-query';
 
 import { milisToTime } from './helpers';
-import { useToken, logout, refresh } from './example/example';
+import { useToken, logout, refresh } from './example/auth';
 import { fetchMe } from './example/api';
 
 const Private: FC = () => {
