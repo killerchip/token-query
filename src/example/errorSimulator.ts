@@ -1,10 +1,12 @@
 export type ResponseState = 'normal' | 'permanent' | 'temporary';
 
-export const responses: {
+interface Responses {
   loginResponse: ResponseState;
   refreshResponse: ResponseState;
   meResponse: ResponseState;
-} = {
+}
+
+export const responses: Responses = {
   loginResponse: 'normal',
   refreshResponse: 'normal',
   meResponse: 'normal'

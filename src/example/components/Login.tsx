@@ -1,6 +1,6 @@
 /* eslint-disable no-alert */
 import React, { FC, useEffect } from 'react';
-import { useLogin } from './example/auth';
+import { useLogin } from '../auth';
 
 const Login: FC = () => {
   const { isFetching, requestLogin, error } = useLogin();

@@ -82,6 +82,13 @@ const sendRefresh = async (data: Token) => {
 const retry = (count: number, error: Error) =>
   count < 3 && !error.message.includes('401-');
 
+const shouldRefreshOnBackground = (token: Token) => {
+  const REFRESH_TIME_BEFORE_EXPIRE = 1000 * 60 * 1;
+
+  const now = new Date().getTime();
+  return now > token.token - REFRESH_TIME_BEFORE_EXPIRE;
+};
+
 const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   queryKey: 'token',
   tokenExpired,
@@ -90,15 +97,10 @@ const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   sendRefresh,
   retry,
   tokenExpiredError: new Error('401-Refresh token expired'),
-  shouldRefreshOnBackground: (token) => {
-    const REFRESH_TIME_BEFORE_EXPIRE = 1000 * 60 * 1;
-
-    const now = new Date().getTime();
-    return now > token.token - REFRESH_TIME_BEFORE_EXPIRE;
-  }
+  shouldRefreshOnBackground
 });
 
-mockTokenQuery.init(1000 * 60);
+mockTokenQuery.init(1000 * 60); // 1min
 
 /* eslint-disable prefer-destructuring */
 export const useToken = mockTokenQuery.useToken;

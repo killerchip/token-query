@@ -66,6 +66,7 @@ function createTokenQuery<TToken, LoginParams>({
       }
     });
 
+    // If token is undefined then refresh has failed
     if (newToken !== undefined) {
       setTokenValue(newToken);
     }

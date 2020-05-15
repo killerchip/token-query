@@ -1,9 +1,9 @@
 import React, { FC } from 'react';
 import { useQuery } from 'react-query';
 
-import { milisToTime } from './helpers';
-import { useToken, logout, refresh } from './example/auth';
-import { fetchMe } from './example/api';
+import { milisToTime } from '../../helpers';
+import { useToken, logout, refresh } from '../auth';
+import { fetchMe } from '../api';
 
 const Private: FC = () => {
   const token = useToken();
