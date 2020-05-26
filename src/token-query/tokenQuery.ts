@@ -118,7 +118,10 @@ function createTokenQuery<TToken, LoginParams>({
     const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<any | null>(null);
 
-    const requestLogin = async (loginParams: LoginParams) => {
+    const requestLogin = async (
+      loginParams: LoginParams,
+      throwOnError = false
+    ) => {
       setIsFetching(true);
       setData(null);
       setError(null);
@@ -134,6 +137,10 @@ function createTokenQuery<TToken, LoginParams>({
       } catch (loginError) {
         setIsFetching(false);
         setError(loginError);
+
+        if (throwOnError) {
+          throw loginError;
+        }
       }
 
       return undefined;
