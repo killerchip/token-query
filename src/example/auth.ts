@@ -96,7 +96,7 @@ const mockTokenQuery = createTokenQuery<Token, LoginParams>({
   sendLogin,
   sendRefresh,
   retry,
-  tokenExpiredError: new Error('401-Refresh token expired'),
+  refreshExpiredError: new Error('401-Refresh token expired'),
   shouldRefreshOnBackground
 });
 

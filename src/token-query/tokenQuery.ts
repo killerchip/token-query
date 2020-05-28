@@ -2,27 +2,27 @@ import { queryCache } from 'react-query';
 import { useState, useEffect } from 'react';
 import isEqual from 'lodash/isEqual';
 
-export interface Config<TToken, LoginParams> {
+export interface Config<TToken, TLoginParams> {
   tokenExpired: (token: TToken) => boolean;
   refreshExpired: (token: TToken) => boolean;
-  sendLogin: (loginParams: LoginParams) => Promise<TToken>;
+  sendLogin: (loginParams: TLoginParams) => Promise<TToken>;
   sendRefresh: (token: TToken) => Promise<TToken>;
   retry: (failCount: number, error: any) => boolean;
-  tokenExpiredError: any;
+  refreshExpiredError: any;
   queryKey?: string;
   shouldRefreshOnBackground?: (token: TToken) => boolean;
 }
 
-function createTokenQuery<TToken, LoginParams>({
+function createTokenQuery<TToken, TLoginParams>({
   queryKey = 'token',
   tokenExpired,
   refreshExpired,
   sendLogin,
   sendRefresh,
   retry,
-  tokenExpiredError,
+  refreshExpiredError,
   shouldRefreshOnBackground
-}: Config<TToken, LoginParams>) {
+}: Config<TToken, TLoginParams>) {
   let tokenRefreshIntervalHandler: any;
   let tokenRefreshInterval: number;
 
@@ -88,11 +88,11 @@ function createTokenQuery<TToken, LoginParams>({
     clearInterval(tokenRefreshIntervalHandler);
   };
 
-  const login = async (loginParams: LoginParams) => {
+  const login = async (loginParams: TLoginParams) => {
     const token = await queryCache.prefetchQuery({
       queryKey: [`temp-login-${queryKey}`],
       variables: [loginParams],
-      queryFn: (_: string, params: LoginParams) => sendLogin(params),
+      queryFn: (_: string, params: TLoginParams) => sendLogin(params),
       config: {
         retry,
         throwOnError: true
@@ -119,7 +119,7 @@ function createTokenQuery<TToken, LoginParams>({
     const [error, setError] = useState<any | null>(null);
 
     const requestLogin = async (
-      loginParams: LoginParams,
+      loginParams: TLoginParams,
       throwOnError = false
     ) => {
       setIsFetching(true);
@@ -178,7 +178,7 @@ function createTokenQuery<TToken, LoginParams>({
     if (token === undefined) return undefined;
 
     if (refreshExpired(token)) {
-      throw tokenExpiredError;
+      throw refreshExpiredError;
     }
 
     if (tokenExpired(token) || force) {
