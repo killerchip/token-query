@@ -170,14 +170,167 @@ First you have to initialize the `token-query`
 mockTokenQuery.init(1000 * 60); // 1min
 ```
 
-...to be continued
+You can optionally pass an interval (ms), which will be triggering a periodic refresh in the backround. If you don't provide parameter then the periodic refresh will be scheduled (only the token-request based refresh will take place).
+
+`token-query` also automatically persist the token in the `localStorage` of the browser, on each refresh/login. On initialization it will load any stored token from the `localStorage`. If the refresh-token has expired then it will ignore it and remove it from the storage.
 
 ## useLogin
 
+This is a hook that exposes state and funcationality for reuesting (login) a new token.
+
+```
+const { data, isFetching, error, requestLogin } = mockQuery.useLogin();
+```
+
+- `data` holds the result after the login process
+- `isFetching` (boolean) indicates that the login process is in progress
+- `error` holds the error if the last login attempt failed
+
+**requestLogin**
+You can use `requestLogin` async function in two ways.
+
+You can just fire it up and have the hook manage your component's lifecycle.
+
+example:
+
+```
+const { data, isFetching, error, requestLogin } = mockQuery.useLogin();
+
+return (
+    <button
+        onClick={() => requestLogin({email, password})} // credentials derived from a login form
+    >
+        {isFetching ? 'in-progress' : 'Login'}
+    </button>
+
+    {error && <p>{error.message}</p>}
+)
+```
+
+Or you can handle the `requestLogin` function in async way:
+
+example:
+
+```
+    const {requestLogin} = mockQuery.useLogin();
+
+    const login = asyc (email, password) => {
+        try {
+            await requestLogin({email, password}, true); // pass TRUE as optional parameter to throw error on failure
+            // and do stuff on successfull login
+        } catch(error) {
+            // do something with error
+        }
+    }
+```
+
+Don't forget to pass the `throwOnError = true` parameter if you want to catch and handle failures.
+By default `requestLogin` will suppress errors.
+
+Here's the declaration of `requestLogin`
+
+```
+const requestLogin = async (
+    loginParams: TLoginParams,
+    throwOnError = false
+) => {/* implementation here */}
+```
+
 ## useToken
+
+The `useToken` hook allow you to use the current token on any component you wish.
+
+example:
+
+```
+const token = mockQuery.useToken();
+
+return token !== undefined ? <PrivateRoute> : <PublicRoute>;
+```
 
 ## logout
 
+Call the `logout` function you want to logout from your app.
+It will delete the current token and will stop any scheduled background refresh operation.
+
+example:
+
+```
+<button
+    onClick={() => {
+        mockQuery.logout();
+        // other logout steps
+    })}
+>
+    Logout
+</button>
+```
+
 ## refresh
 
+Use the `refresh` async function in any case you wish to manually trigger a token refresh operation. It will launch a refresh operation using the currently stored token.
+
+example:
+
+```
+const manualRefresh = async () => {
+    try {
+        await mockQuery.refresh(true)
+    } catch (error) {
+        //do something with error
+    }
+}
+```
+
+`refresh` function will take `throwOnError` optional parameter. If true, it will throw on refresh failure. By default it will supress the error (used in background refreshing).
+
 ## getToken
+
+This is core function of `token-query`. You should use this function from your client functions that need to inject the authentication token in their requests.
+
+example:
+
+```
+const fetchUserProfile = async () => {
+    const token = await mockQuery.getToken();
+
+    // here inject the token and send the actual request
+}
+```
+
+`getToken` will return immediately the stored token if it has not expired. If you want to force it to refresh the token even it if has not expired, then you can pass the `true` as parameter to force it refresh a token before returning it.
+
+```
+const getToken = async (force = false) => {/*...*/}
+```
+
+In particular `getToken` function will behave as follows:
+
+- If there is no token, it will return undefined
+- If the refresh token expired then it will throw the `refreshExpiredError` (provided during configuration setup)
+- If the token itself has expired or `force` parameter is passed, then it will attempt to refresh token and then it will return the new token. If the process fails, it will throw error of the failed attempt.
+- If the token has not expired and it is not `force`ed, it will return immediately the stored token. But if a `shouldRefreshOnBackground` condition is setup and the condition is met, it will launch a background refresh.
+
+Note that background refresh supress any errors, and do not throw. Also if multiple client request a token `concurrently` and a token refresh is in progress, only one refresh operation is launched towards the server, and all clients will be served the same new token once fetched.
+
+## Example
+
+You can find an implementation example project under `src/example` on how to use `token-query`.
+
+This whole project is a react project demonstrating the use of `token-query`. You just have to:
+
+1. Clone the project locally
+1. `yarn install`
+1. `yarn start`
+
+# License
+
+MIT License
+
+Copyright 2020, Costas Ioannou
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
