@@ -1,57 +1,60 @@
-This is a small library that will help you manage authentication token and refresh token.
+`token-query` is a tool to help you manage your authentication tokens in your react webapp.
+It offers login & logout functionality, transparent token refreshing on per token request basis, and background refreshing, persistence in `localStorage`, etc.
 
-It is based on `react-query`.
+It is based on and requires [`react-query`](https://github.com/tannerlinsley/react-query) package. So it better fits in projects that use `react-query` for remote data handling.
 
-# Use case
+# Assumptions
 
-Typically during login you will get from backend-server an authentication token and a refresh token.
+`token-query` was designed to cover the following use-case regarding authentication:
 
-You will be using your authentication token to launch authenticated requests towards your server (typically injecting it as request header).
+During authentication your client app will send credentials to the authentication server and receive a set of tokens, the authentication token and the refresh token.
 
-The token has a expiration time. You should be able to refresh the authentication token by launching a corresponding request to the backend server, using the provided refresh token.
+You use the refresh token to obtain a new authentication token if (or before) it expires.
 
-The refresh token itself has an expiration time. If the refresh token expires then the user must re-login in order to be authenticated again.
+The authentication token is used by your network client in each private request (typically as a request header). Your network client will request the token from `token-query`, without worrying about managing it.
 
 # what `token-query` offers
 
-- Seamlessly refreshing the token if expires, while authenticated requets are lauched.
-- Support for multiple concurrent refresh requests while consoliding into a single request.
-- Ability to launch token refresh operation in background before it expires.
-- Ability to launch token refresh operation in background repeatedly in background to keep the user logged in.
-- Integrated token storage, and clean up on logout.
+- Network client agnostic: use `axios`, `fetch`, or anything else.
+- Management of refreshing. Your network client just asks for a token. Nothing more.
+- Auto refresh token when expired, refresh on background before it expires, and/or refresh on background periodically.
+- Consolidate multiple refresh requests into one.
+- Token persistence using `localStorage`.
 
 # How to install
 
 Just copy the source file `src\token-query\tokenQuery.ts` into your project.
 
-The project must be setup using `Typescript`
+Prerequesites:
 
-Add the following packages that the library needs.
+- The project must be setup using `Typescript`
+- install [`react-query`](https://github.com/tannerlinsley/react-query) package
+- install [`loadash`](https://lodash.com/)
 
-- `react-query`
-- `loadash`
+# Setup
 
-# How to initialize the library
-
-You must create an instance of the library with specific configuration options and then initialize it.
-
-The created instance will export utility functions to integrate token management with your codebase.
-
-Run `createTokenQuery` to create an instance.
+Create a new query instance by providing a configuration object.
 
 ```
-import createTokenQuery from '../token-query/tokenQuery';
+import createTokenQuery from './tokenQuery';
 
-const configuration = ... // a configuration object
-
-const tokenQuery = createTokenQuery<TToken, TLoginParams>(configuration);
+const exampleQuery = createTokenQuery<Token, LoginParams>({
+  queryKey: 'token',
+  tokenExpired,
+  refreshExpired,
+  sendLogin,
+  sendRefresh,
+  retry,
+  refreshExpiredError: new Error('401-Refresh token expired'),
+  shouldRefreshOnBackground
+});
 ```
 
-## Token and LoginParams types
+## TToken
 
-When you create a tokenQuery object, you have to declare the shape of the Token and an object that the login process will use when login-in to the backend.
+Is the shape of your token set, as it will be stored and served by `token-query`.
 
-For example, this could be a Token type:
+example:
 
 ```
 interface TToken {
@@ -62,7 +65,11 @@ interface TToken {
 }
 ```
 
-And login parameters could be:
+## Login parameters
+
+An object shape that hosts the parameters for the login request to the authentication server.
+
+example:
 
 ```
 interface TLoginParams {
@@ -73,7 +80,7 @@ interface TLoginParams {
 
 ## Configuration
 
-For creating an instance, you must provide a configuration object that has the following properties:
+The configuration object should have the following properties:
 
 ### queryKey (optional)
 
@@ -81,11 +88,12 @@ For creating an instance, you must provide a configuration object that has the f
 queryKey?: string = 'token';
 ```
 
-This key will be used by `react-query` library to store the tokens. It will also be used for saving the tokens in `localStorage`.
+The key that will be used by `react-query` to host the token, and the `localStorage` key. Defaults to `token`
 
 ### sendLogin
 
-The async function that will be called for login/fetching authentication token. It expects as parameters an object of type `TLoginParams` and it should return the token of type `TToken`.
+Your async newtork function that sends login request to the authentication server.
+It should accept a single parameter of `TLoginParams` type and should return the token set as `TToken` type.
 
 ```
 sendLogin: (loginParams: TLoginParams) => Promise<TToken>;
@@ -93,7 +101,9 @@ sendLogin: (loginParams: TLoginParams) => Promise<TToken>;
 
 ### sendRefresh
 
-The async function that will be called for refreshing the authentication token. It expects as parameters the token set `TToken` and it should return the new token set.
+Your async network function that sends a refresh request to the authentication server.
+
+It should expect the current token set as parameter and return the new one.
 
 ```
 sendRefresh: (token: TToken) => Promise<TToken>;
@@ -101,11 +111,16 @@ sendRefresh: (token: TToken) => Promise<TToken>;
 
 ### retry
 
-This function provides the logic for deciding if an attempt (login or refresh) should be retried or not.
+This function should provide the decision logic on wether a failed attempt (login or refresh) should be retried.
 
-It will be called with the past `failCount` from previous retries and the last error. It should return true if another attempt should occur. (See `react-query` for more details).
+It should accept two parameters:
 
-An example would be to retry 3 times, but not if the error is a permanent one (e.g. wrong credentials)
+- `failCount`: the number of retries so far
+- `error`: the error occured from the last failed request.
+
+It should return a boolean result indicating if another attempt should be made.
+
+example: Retry 3 times, but not if the error is a permanent one (e.g. wrong credentials)
 
 ```
 const retry = (count: number, error: Error) =>
@@ -113,9 +128,11 @@ const retry = (count: number, error: Error) =>
 
 ```
 
+See [`react-query`](https://github.com/tannerlinsley/react-query) for more details
+
 ### tokenExpired
 
-This function will be called to determine if the token has expired. It accepts the current token set `TToken` and it should return `true` if the token expired.
+This function should provide the logic for determining if the authentication token expired or not.
 
 ```
 tokenExpired: (token: TToken) => boolean;
@@ -123,7 +140,7 @@ tokenExpired: (token: TToken) => boolean;
 
 ### refreshExpired
 
-This function will be called to determine if the refresh token has expired. Same as above:
+This function should provide the logic for determining if the refresh token expired or not.
 
 ```
 refreshExpired: (token: TToken) => boolean;
@@ -131,24 +148,28 @@ refreshExpired: (token: TToken) => boolean;
 
 ### refreshExpiredError
 
-When your client will request a token from `token-query`, and the refresh token has already expired, `token-query` will throw the `refreshExpiredError` to indicate this.
+If `token-query` determines that the refresh token has already expired, it will not lauch a refresh request at all, but will throw an error.
+
+Determine here what error you wish to be thrown back to your network client. It can be of `any` type.
 
 ### shouldRefreshOnBackground (optional)
 
-When your client request a token, and the token is not yet expired, `token-query` will immediately return the current token. But you might want to trigger in the background a token refresh, to have a new token ready, before it expires.
+When your client request an authentication token from `token-query`, and the token is still valid, the latter will return the token immediately.
 
-If you define `shouldRefreshOnBackground` function, with each token request, this function wll be called (with the current token as parameter). If it returns true a background refresh will be lauched.
+You can have it trigger a background refresh operation, so you can refresh the token before it actually expires. (so there's no delay on the requests waiting for the token to refresh)
+
+Provide the funcation that implements the decision logic on launching the background refresh operation or not. If it is missing, `token-query` will not check for lauching background refresh on each token request by network clients.
 
 ```
 shouldRefreshOnBackground?: (token: TToken) => boolean;
 ```
 
-# How to use
+# Use
 
-You should create an instance of `token-query` by providing it with necessary types for token and login parameters and the above described configuration.
+Once you create an instance of `token-query`, the instance provide to you a set of usefull functions:
 
 ```
-const mockTokenQuery = createTokenQuery<Token, LoginParams>({
+const exampleQuery = createTokenQuery<Token, LoginParams>({
   queryKey: 'token',
   tokenExpired,
   refreshExpired,
@@ -162,39 +183,47 @@ const mockTokenQuery = createTokenQuery<Token, LoginParams>({
 
 This will create an object with utility functions.
 
+```
+const { init, useToken, useLogin, logout, refresh, getToken } = exampleQuery;
+```
+
 ## init
 
-First you have to initialize the `token-query`
+You must use this first to initialize the query.
+
+example:
 
 ```
-mockTokenQuery.init(1000 * 60); // 1min
+exampleQuery.init(1000 * 60 * 40); // 40 min
 ```
 
-You can optionally pass an interval (ms), which will be triggering a periodic refresh in the backround. If you don't provide parameter then the periodic refresh will be scheduled (only the token-request based refresh will take place).
+On initialization `token-query` attempts to load any stored token from the `localStorage`. If the refresh-token has expired then it will ignore it and remove it from the storage.
 
-`token-query` also automatically persist the token in the `localStorage` of the browser, on each refresh/login. On initialization it will load any stored token from the `localStorage`. If the refresh-token has expired then it will ignore it and remove it from the storage.
+You can pass an optiona parameter of interval in milliseconds. This will trigger a periodic token refresh in the backround. If not provided no periodic refresh will trigger.
+
+`token-query` also automatically persist the token in the `localStorage` of the browser, on each refresh/login.
 
 ## useLogin
 
 This is a hook that exposes state and funcationality for reuesting (login) a new token.
 
 ```
-const { data, isFetching, error, requestLogin } = mockQuery.useLogin();
+const { data, isFetching, error, requestLogin } = exampleQuery.useLogin();
 ```
 
-- `data` holds the result after the login process
-- `isFetching` (boolean) indicates that the login process is in progress
-- `error` holds the error if the last login attempt failed
+- `data` stores the token returned by the login process
+- `isFetching` (boolean) indicates if the login is in progress or not
+- `error` stores the error if the last login attempt failed
 
-**requestLogin**
-You can use `requestLogin` async function in two ways.
+`requestLogin` is an async function for triggering a login. You can use it in two ways:
 
+_As hook_
 You can just fire it up and have the hook manage your component's lifecycle.
 
 example:
 
 ```
-const { data, isFetching, error, requestLogin } = mockQuery.useLogin();
+const { data, isFetching, error, requestLogin } = exampleQuery.useLogin();
 
 return (
     <button
@@ -207,12 +236,13 @@ return (
 )
 ```
 
+_As async function_
 Or you can handle the `requestLogin` function in async way:
 
 example:
 
 ```
-    const {requestLogin} = mockQuery.useLogin();
+    const {requestLogin} = exampleQuery.useLogin();
 
     const login = asyc (email, password) => {
         try {
@@ -224,26 +254,25 @@ example:
     }
 ```
 
-Don't forget to pass the `throwOnError = true` parameter if you want to catch and handle failures.
-By default `requestLogin` will suppress errors.
+By default `requestLogin` will suppress any error. If you pass `true` as second parameter it will throw any error occured during the process.
 
-Here's the declaration of `requestLogin`
+_`requestLogin`_:
 
 ```
 const requestLogin = async (
     loginParams: TLoginParams,
     throwOnError = false
-) => {/* implementation here */}
+) => {/* ... */}
 ```
 
 ## useToken
 
-The `useToken` hook allow you to use the current token on any component you wish.
+The `useToken` hook provides the current token stored in the query.
 
 example:
 
 ```
-const token = mockQuery.useToken();
+const token = exampleQuery.useToken();
 
 return token !== undefined ? <PrivateRoute> : <PublicRoute>;
 ```
@@ -251,14 +280,14 @@ return token !== undefined ? <PrivateRoute> : <PublicRoute>;
 ## logout
 
 Call the `logout` function you want to logout from your app.
-It will delete the current token and will stop any scheduled background refresh operation.
+It will clear token and any scheduled background refresh operation.
 
 example:
 
 ```
 <button
     onClick={() => {
-        mockQuery.logout();
+        exampleQuery.logout();
         // other logout steps
     })}
 >
@@ -275,51 +304,52 @@ example:
 ```
 const manualRefresh = async () => {
     try {
-        await mockQuery.refresh(true)
+        await exampleQuery.refresh(true)
     } catch (error) {
         //do something with error
     }
 }
 ```
 
-`refresh` function will take `throwOnError` optional parameter. If true, it will throw on refresh failure. By default it will supress the error (used in background refreshing).
+`refresh` function will take `throwOnError` optional parameter. If `true`, it will throw any error that occured during refresh process. By default it will supress the error.
 
 ## getToken
 
-This is core function of `token-query`. You should use this function from your client functions that need to inject the authentication token in their requests.
+This is core function of `token-query`. Your network clients should use this to get and use the current authentication token.
 
 example:
 
 ```
 const fetchUserProfile = async () => {
-    const token = await mockQuery.getToken();
-
+    const token = await exampleQuery.getToken();
     // here inject the token and send the actual request
 }
 ```
 
-`getToken` will return immediately the stored token if it has not expired. If you want to force it to refresh the token even it if has not expired, then you can pass the `true` as parameter to force it refresh a token before returning it.
+`getToken` will return immediately the stored token if it valid. If you want to force it to refresh the token even it if has not expired, then you can pass `true` as parameter to force it refresh a token before returning it.
 
 ```
 const getToken = async (force = false) => {/*...*/}
 ```
 
-In particular `getToken` function will behave as follows:
+`getToken` async function acts as follows:
 
-- If there is no token, it will return undefined
-- If the refresh token expired then it will throw the `refreshExpiredError` (provided during configuration setup)
-- If the token itself has expired or `force` parameter is passed, then it will attempt to refresh token and then it will return the new token. If the process fails, it will throw error of the failed attempt.
-- If the token has not expired and it is not `force`ed, it will return immediately the stored token. But if a `shouldRefreshOnBackground` condition is setup and the condition is met, it will launch a background refresh.
-
-Note that background refresh supress any errors, and do not throw. Also if multiple client request a token `concurrently` and a token refresh is in progress, only one refresh operation is launched towards the server, and all clients will be served the same new token once fetched.
+- If there is no token, it will return the `undefined` value.
+- If the refresh token expired then it will throw the `refreshExpiredError` (see setup)
+- If the token itself has expired or `force` parameter is passed, then it will launch refresh and return the new one.
+- If the above refresh operation fails, it will throw the error that occured.
+- If the token has not expired and it is not `force`ed, it will return immediately the stored token.
+- If a `shouldRefreshOnBackground` condition is setup and met, it will launch a background refresh operation.
+- Refresh error on background operations are supressed.
+- In case multiple clients request for a token while it is refreshing, only one request is lauched towards authentication server. Once resolved, all client requests receive the same token.
 
 ## Example
 
-You can find an implementation example project under `src/example` on how to use `token-query`.
+You can find the source code of an example project under `src/example`.
 
-This whole project is a react project demonstrating the use of `token-query`. You just have to:
+To run test the example as follows:
 
-1. Clone the project locally
+1. Clone this project locally
 1. `yarn install`
 1. `yarn start`
 
