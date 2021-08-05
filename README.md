@@ -29,7 +29,7 @@ Prerequesites:
 
 - The project must be setup using `Typescript`
 - install [`react-query`](https://github.com/tannerlinsley/react-query) package
-- install [`loadash`](https://lodash.com/)
+- install [`lodash`](https://lodash.com/)
 
 # Setup
 
